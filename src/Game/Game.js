@@ -110,7 +110,7 @@ class GameScene{
         while (result != 0){
             result = 0;
             this.new();
-            this.map.forEach(crystals => crystals.forEach(crystal => result += this.kill(crystal)));
+            //this.map.forEach(crystals => crystals.forEach(crystal => /*result += this.kill(crystal)*/));
         }
         setInterval(() => {this.map[9].forEach((crystal, x) => {
             if (crystal) {
@@ -157,16 +157,27 @@ class GameScene{
         return false;
     }
 
+    next(turn, x,y,dx,dy){
+        const crystal = this.map[y][x].item;
+        if (this.map[y+dy][x+dx].item.power === crystal.power) {
+            turn.push(this.map[y+dy][x+dx]);
+            return this.next(turn, x + dx, y + dy, dx, dy);
+        };
+        return turn;
+    }
+
     check(x,y){
         const crystal = this.map[y][x].item;
-        console.log(crystal);
-
+        const vertical = 1 + this.next([],x,y,0,1).length + this.next([],x,y,0,-1).length;
+        const horizontal = 1 + this.next([],x,y,1,0).length + this.next([],x,y,-1,0).length;
+        if (vertical >= 3 || horizontal >= 3) console.log("GREAT!!!");
+        return;
     }
 
     swap(x1,y1,x2,y2) {
         const current = this.map[y1][x1].item;
         this.setCrystal(x1,y1, this.map[y2][x2].item);
-        this.setCrystal(x2,y2, current)
+        this.setCrystal(x2,y2, current);
     }
 
     setCrystal(x,y,crystal){
@@ -175,7 +186,7 @@ class GameScene{
     }
 
 
-    kill(crystal){
+    /*kill(crystal){
         if (crystal) {
             const near = {
                 top: [...this.next(crystal, { x: 0, y: -1})],
@@ -205,7 +216,7 @@ class GameScene{
             return result; 
         }
 
-    }
+    }*/
 
     status(){
         //console.clear();
@@ -216,22 +227,6 @@ class GameScene{
         console.log('ground:',this.energy[4]);
         console.log('sun:',this.energy[5]);
         console.log('enemy: ', this.enemy.energy);
-    }
-
-    next(crystal, step){
-        if (crystal && crystal.power != 0) {
-            const x = crystal.x + step.x;
-            const y = crystal.y + step.y
-            if (x >= 0 && y >= 0 && x < 10 && y < 10){
-                const next = this.map[y][x];
-                if (next && next.power == crystal.power) {
-                    const result = [next]
-                    result.push(...this.next(next, step));
-                    return result;
-                }
-            }
-        }
-        return [];
     }
 
     down(crystal){
