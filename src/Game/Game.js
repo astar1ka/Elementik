@@ -1,14 +1,23 @@
 function Game() {
     const timer = new Timer;
 
-    const canvas = document.createElement('canvas',);
+    const canvas = document.createElement('canvas');
     canvas.width = 600;
     canvas.height = 600;
     document.body.insertBefore(canvas,null);
 
+    const button = document.createElement('button');
+    button.className = 'button';
+    button.innerHTML = 'Умение';
+    document.body.insertBefore(button,null);
+
     const scene = new GameScene(canvas,10,10);
 
     scene.render();
+
+    button.onclick = () => {
+        scene.skill();
+    }
 
     function update() {
         check();
@@ -34,6 +43,7 @@ class Crystal {
         if (this.power == 4) this.color = "brown";
         if (this.power == 5) this.color = "orange";
         this.active = true;
+        this.saint = false;
     }
 
     render(canvas,x,y) {
@@ -41,8 +51,8 @@ class Crystal {
         canvas.arc(x * 50 + 25, y * 50 + 25, 23 , 0, 2 * Math.PI, false);
         canvas.fillStyle = this.color;
         canvas.fill();
-        canvas.lineWidth = 2;
-        canvas.strokeStyle = '#003300';
+        canvas.lineWidth = (this.saint) ? 4 : 2;
+        canvas.strokeStyle = (this.saint) ? '#1144ff' : '#003300';
         canvas.stroke();
     }
 
@@ -55,6 +65,7 @@ class Crystal {
 
 class GameScene{
     drag = {
+        is: false,
         start: {
             x: 0,
             y: 0
@@ -67,7 +78,7 @@ class GameScene{
         this.width = w;
         this.height = h;
         this.canvas = canvas;
-        this.context = this.canvas.getContext("2d")
+        this.context = this.canvas.getContext("2d");
 
         this.energy = {
             1: 0,
@@ -76,6 +87,8 @@ class GameScene{
             4: 0,
             5: 0,
         }
+
+        this.turnNumber = 0;
 
         this.enemy = {
             energy: 0,
@@ -99,12 +112,13 @@ class GameScene{
         this.canvas.onmouseup = (event) => {
             const x = Math.trunc(event.x/50);
             const y = Math.trunc(event.y/50);
-            if (!this.turn(this.drag.start.x, this.drag.start.y, x,y) && this.drag.crystal) this.drag.crystal.setXY(this.drag.start.x, this.drag.start.y);
+            this.turn(this.drag.start.x, this.drag.start.y, x,y);
+            if (this.drag.is);
             this.drag.crystal = null;
             this.render();
         }
 
-        this.map.forEach(items => items.forEach(item => item.item = new Crystal(Math.trunc(Math.random() * 5 - 0.1) + 1) ));
+        
 
         let result = 1;
         while (result != 0){
@@ -112,13 +126,6 @@ class GameScene{
             this.new();
             //this.map.forEach(crystals => crystals.forEach(crystal => /*result += this.kill(crystal)*/));
         }
-        setInterval(() => {this.map[9].forEach((crystal, x) => {
-            if (crystal) {
-                this.enemy.energy ++;
-                if(crystal.power === this.enemy.power) this.enemy.energy++;
-            }
-            this.map[9][x] = null
-        }); this.gravity()}, 3000);
 
         this.energy = {
             1: 0,
@@ -143,7 +150,11 @@ class GameScene{
     }
 
     new(){
-        this.map.forEach(crystals => crystals.forEach(crystal => {if (!crystal) this.map[y][x] = new Crystal(Math.trunc(Math.random() * 5 - 0.1) + 1)}));
+        this.map.forEach(items => items.forEach(item => item.item = new Crystal(Math.trunc(Math.random() * 5 - 0.1) + 1) ));
+        const x = Math.trunc(Math.random()*this.width);
+        const y = Math.trunc(Math.random()*this.height);
+        console.log(this.map[y][x]);
+        this.map[y][x].saint = true;
         this.render();
     }
 
@@ -152,25 +163,51 @@ class GameScene{
         const dy = Math.abs(y1-y2);
             if ( (dx > 0 && dx <= 1 && dy == 0) || (dy>0 && dy <= 1 && dx == 0)){
                 this.swap(x1,y1,x2,y2);
+                this.turnNumber +=1;
+                if (this.turnNumber === 3) this.gravity();
                 return true;
             }
         return false;
     }
 
-    next(turn, x,y,dx,dy){
+    next(turn, x,y,dx,dy, power){
         const crystal = this.map[y][x].item;
-        if (this.map[y+dy][x+dx].item.power === crystal.power) {
-            turn.push(this.map[y+dy][x+dx]);
-            return this.next(turn, x + dx, y + dy, dx, dy);
-        };
+        if (crystal && y+dy >= 0 && y+dy < this.width && x+dx >= 0 && x+dx < this.height)
+            if (this.map[y+dy][x+dx].item)
+                if (this.map[y+dy][x+dx].item.power === power) {
+                    turn.push(this.map[y+dy][x+dx]);
+                    return this.next(turn, x + dx, y + dy, dx, dy, power);
+                };
         return turn;
     }
 
     check(x,y){
-        const crystal = this.map[y][x].item;
-        const vertical = 1 + this.next([],x,y,0,1).length + this.next([],x,y,0,-1).length;
-        const horizontal = 1 + this.next([],x,y,1,0).length + this.next([],x,y,-1,0).length;
+        const crystal = this.map[y][x];
+        if (this.map[y][x].item) {
+            const bot = this.next([],x,y,0,1, crystal.item.power);
+            const top = this.next([],x,y,0,-1, crystal.item.power);
+            const left = this.next([],x,y,1,0,crystal.item.power)
+            const right = this.next([],x,y,-1,0,crystal.item.power)
+            const power = crystal.item.power;
+            const vertical = [crystal];
+            const horizontal = [crystal];
+            vertical.push(...bot,...top);
+            horizontal.push(...left,...right);
+            console.log(vertical);
+            if (vertical.length >= 3) {
+                console.log(power);
+                vertical.forEach(place => this.kill(place));
+            }
+            if (horizontal.length >= 3) {
+                console.log(power);
+                horizontal.forEach(place => this.kill(place));
+            }
+            
+        }
+
+        /*const horizontal = 1 + this.next([],x,y,1,0).length + .length;
         if (vertical >= 3 || horizontal >= 3) console.log("GREAT!!!");
+        return;*/
         return;
     }
 
@@ -178,11 +215,14 @@ class GameScene{
         const current = this.map[y1][x1].item;
         this.setCrystal(x1,y1, this.map[y2][x2].item);
         this.setCrystal(x2,y2, current);
+        this.check(x1,y1);
+        this.check(x2,y2);
+        this.gravity();
+        
     }
 
     setCrystal(x,y,crystal){
         this.map[y][x].item = crystal;
-        this.check(x,y);
     }
 
 
@@ -229,33 +269,21 @@ class GameScene{
         console.log('enemy: ', this.enemy.energy);
     }
 
-    down(crystal){
-        if (crystal && crystal.y < 9) {
-            const down = this.map[crystal.y + 1][crystal.x - 0];
-            if (!down) {
-                this.turn(crystal.x, crystal.y, crystal.x ,crystal.y + 1);
-                return true;
-            }
-        }
-        return false;
-    }
-
     gravity(){
-        /*let result = true;
-        while (result) {
-            result = false;
-            this.map.forEach(crystals => crystals.forEach(crystal => {if (this.down(crystal.item)) result = true}));
-        }
-        this.new();
-        let resultKill = 1;
-        while (resultKill != 0){
-            resultKill = 0;
-            this.new();
-            this.map.forEach(crystals => crystals.forEach(crystal => resultKill += this.kill(crystal.item)));
-        }*/
+        this.map.forEach((crystals,y) => crystals.forEach((crystal,x) => {
+            if (crystal.item) {
+                if (y+1<this.height){
+                    if (!this.map[y+1][x].item) {
+                        this.swap(x,y,x,y+1);
+                    }
+                }
+            }
+        }))
+        this.render();
     }
 
     select(x,y){
+        this.drag.is = true;
         this.drag.crystal = this.map[y][x].item;
         this.drag.start.x = x;
         this.drag.start.y = y;
@@ -264,10 +292,19 @@ class GameScene{
     dragging(x,y){
     }
 
+    kill(place){
+        place.item = null;
+    }
+
     render(){
         this.context.fillStyle = "white";
         this.context.fillRect(0,0,600,600);
         this.map.forEach((crystals, y) => crystals.forEach ((crystal, x) => {
-            if (crystal) crystal.item.render(this.context,x,y)}));
+            if (crystal?.item) crystal.item.render(this.context,x,y)}));
+    }
+
+    skill(){
+        this.map[this.height-1].forEach(crystal => crystal.item = null);
+        this.gravity();
     }
 }
