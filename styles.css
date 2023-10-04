@@ -1,0 +1,31 @@
+body{
+    align-items: center;
+    position: relative;
+    display: flex;
+}
+
+.status{
+    position: relative;
+    display: flexbox;
+    width: 400px;
+    height: 500px;
+    background-color: antiquewhite;
+}
+
+.status-hpBar{
+    position:absolute;
+    display: flex;
+    top: 10%;
+    left: 10%;
+    height: 10%;
+    width: 80%;
+}
+
+.-current{
+    background-color: green;
+    z-index: 10;
+}
+
+.-maxHp{
+    background-color: red;
+}
